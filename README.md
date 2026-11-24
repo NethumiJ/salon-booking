@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Salon Booking (Sri Lanka)
 
-## Getting Started
+Next.js 16 (App Router) · Tailwind · Drizzle ORM · **Turso (free libSQL)** · deploys on **Vercel Hobby (free)**.
 
-First, run the development server:
+## Roles & URLs
 
-```bash
+| Who | URL | Login |
+|---|---|---|
+| Platform admin (you) | `/admin` | username + password from env vars |
+| Salon owner / manager | `/login` → `/dashboard` | username + password (created by you in `/admin`) |
+| Customer | `/<salon-slug>` (e.g. `/glam-cuts`) | phone number + WhatsApp OTP; asks name on first visit to that salon |
+
+Admin creates a salon: URL name, owner login, name, colours, logo, hours, contact details.
+Salon dashboard: bookings (accept / cancel / done / no-show / reschedule), services (price, duration, which workers perform it), team + leave days, offers/sales, customer search (name/phone), settings, staff logins.
+
+## Local development
+
+```powershell
+npm install
+npm run db:push     # creates local.db (SQLite file) - no account needed
+npm run db:seed     # demo salon /glam-cuts  (owner: glam-owner / Demo-Owner-2026)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+`.env.local` is already generated (dev admin: `admin`, password noted in a comment inside that file; `DEV_SHOW_OTP=true` shows the OTP on screen).
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deploy (all free)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Database** – create a free DB at <https://turso.tech> (`turso db create salon`, `turso db tokens create salon`).
+   Put `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` in `.env.local`, then run `npm run db:push` once to create the tables in Turso.
+2. **Secrets** – generate `SESSION_SECRET` (48+ random chars) and your admin hash:
+   `npm run hash-password -- "a long admin password"` → `ADMIN_PASSWORD_HASH`.
+3. **Vercel** – import the repo, add all vars from `.env.example` (Project → Settings → Environment Variables). Set `NEXT_PUBLIC_SITE_URL` to your real URL (used by sitemap/SEO).
+4. Do **not** set `DEV_SHOW_OTP` in real production.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## WhatsApp OTP
 
-## Learn More
+`src/lib/whatsapp.ts` is the single place to plug in your provider (stub for now). OTP rules: 6 digits, 5-minute expiry, single use, max 5 attempts, 3 sends / 10 min per number, hashed (HMAC) in the DB.
 
-To learn more about Next.js, take a look at the following resources:
+## Security summary
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Headers**: strict CSP with per-request nonce + `strict-dynamic`, HSTS (preload), `X-Frame-Options: DENY`, `nosniff`, Referrer-Policy, Permissions-Policy, COOP/CORP; `X-Powered-By` removed.
+- **XSS**: React output escaping, no raw HTML, JSON-LD escaped, hex-validated theme colours (no CSS injection), CSP.
+- **SQLi**: Drizzle parameterised queries only; every input validated with Zod; LIKE wildcards stripped.
+- **IDOR / multi-tenancy**: every query is scoped by `salonId` from the signed session (never from form input); customers only see their own bookings; assigned workers/services are verified to belong to the salon.
+- **AuthN**: scrypt password hashes, constant-time compare + dummy hash for unknown users, DB-backed rate limits (per IP and per account), `__Host-` HttpOnly SameSite cookies, signed JWTs re-validated against the DB each request (disabling an account / salon takes effect immediately), short admin (2h) / staff (8h) sessions.
+- **CSRF**: Server Actions origin check + proxy rejects cross-origin writes + SameSite cookies.
+- **SSRF / LFI / SSTI**: no user-controlled URLs are fetched (WhatsApp uses a fixed provider URL), no filesystem access, no template engines, no `eval`.
+- **File upload**: logos only; size cap 200 KB, **magic-byte** validation (PNG/JPEG/WebP, SVG rejected), stored in the DB (not the filesystem), served with `nosniff` + `sandbox` CSP.
+- **Double booking**: slots re-validated on the server, transactional overlap check + partial unique index.
+- **Enumeration**: generic login errors; registration status of a phone number is only revealed after OTP verification.
+- Run `npm audit` periodically and keep dependencies updated.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes / next ideas
+Staff-created walk-in bookings, email/WhatsApp booking notifications (reuse `whatsapp.ts`), per-worker working hours, image gallery, Sinhala/Tamil translations.

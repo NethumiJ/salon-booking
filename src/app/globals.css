@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --brand: #111827;
+  --on-brand: #ffffff;
+  --accent: #d4a373;
+  --bg: #f7f6f3;
+  --ink: #1a1a1a;
+  --muted: #6b7280;
+  --line: #e7e5e0;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-brand: var(--brand);
+  --color-onbrand: var(--on-brand);
+  --color-accent: var(--accent);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-paper: var(--bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-brand { @apply bg-brand text-onbrand hover:opacity-90; }
+  .btn-accent { @apply bg-accent text-ink hover:opacity-90; }
+  .btn-ghost { @apply border border-line bg-white text-ink hover:bg-black/5; }
+  .btn-danger { @apply bg-red-600 text-white hover:bg-red-700; }
+  .btn-sm { @apply min-h-9 rounded-lg px-3 text-xs; }
+  .card { @apply rounded-2xl border border-line bg-white p-4 shadow-sm sm:p-5; }
+  .input {
+    @apply min-h-11 w-full rounded-xl border border-line bg-white px-3 text-base outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 sm:text-sm;
+  }
+  .label { @apply mb-1 block text-xs font-semibold text-muted; }
+  .chip { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold; }
 }
